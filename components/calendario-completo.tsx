@@ -10,8 +10,12 @@ import { VistaAnual } from "@/components/vistas/vista-anual"
 import { ModalTarea } from "@/components/modal-tarea"
 import { DialogoConfirmacionRecurrencia } from "@/components/dialogo-confirmacion-recurrencia"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, Loader2 } from "lucide-react"
 import { generarFechasRecurrencia } from "@/lib/utilidades-recurrencia"
+import { getBrowserClient } from "@/lib/supabase"
+import { useAuth } from "@/components/auth/auth-context"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export type Tarea = {
   id: string
@@ -42,6 +46,15 @@ export type Tarea = {
     }
   }
   tareaOriginalId?: string
+  user_id?: string
+}
+
+// Tipo para instancias excluidas
+type InstanciaExcluida = {
+  id?: string
+  tareaOriginalId: string
+  fechaExcluida: string // Fecha en formato ISO
+  user_id?: string
 }
 
 export function CalendarioCompleto() {
@@ -50,44 +63,189 @@ export function CalendarioCompleto() {
   const [modalAbierto, setModalAbierto] = useState(false)
   const [tareaEditar, setTareaEditar] = useState<Tarea | null>(null)
   const [vistaActual, setVistaActual] = useState("mensual")
-  const [etiquetas, setEtiquetas] = useState<string[]>([]) // Assuming etiquetas are strings
+  const [etiquetas, setEtiquetas] = useState<string[]>([])
   const [tareasConRecurrencias, setTareasConRecurrencias] = useState<Tarea[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Estado para instancias excluidas (instancias individuales eliminadas)
+  const [instanciasExcluidas, setInstanciasExcluidas] = useState<InstanciaExcluida[]>([])
 
   // Estado para el diálogo de confirmación de eliminación
   const [dialogoEliminarAbierto, setDialogoEliminarAbierto] = useState(false)
   const [tareaEliminar, setTareaEliminar] = useState<Tarea | null>(null)
 
-  // Cargar tareas del localStorage
+  const supabase = getBrowserClient()
+  const { user } = useAuth()
+
+  // Cargar tareas del usuario desde Supabase
   useEffect(() => {
-    const tareasGuardadas = localStorage.getItem("calendaRyn-tareas")
-    if (tareasGuardadas) {
+    const cargarTareas = async () => {
+      if (!user) {
+        console.log("No hay usuario autenticado, no se cargarán tareas")
+        setIsLoading(false)
+        return
+      }
+
+      setIsLoading(true)
+      setError(null)
+      console.log("Iniciando carga de tareas para el usuario:", user.id)
+
       try {
-        const tareasParseadas = JSON.parse(tareasGuardadas)
-        // Convertir las fechas de string a Date
-        const tareasConFechas = tareasParseadas.map((tarea: any) => ({
-          ...tarea,
-          fecha: new Date(tarea.fecha),
-        }))
+        // Cargar tareas
+        console.log("Consultando tabla calendar_events...")
+        const { data: tareasData, error: tareasError } = await supabase
+          .from("calendar_events")
+          .select("*")
+          .eq("user_id", user.id)
+
+        if (tareasError) {
+          console.error("Error al cargar tareas:", tareasError)
+          throw tareasError
+        }
+
+        console.log(`Se encontraron ${tareasData?.length || 0} tareas`)
+
+        // Cargar instancias excluidas
+        console.log("Consultando tabla instancias_excluidas...")
+        const { data: exclusionesData, error: exclusionesError } = await supabase
+          .from("instancias_excluidas")
+          .select("*")
+          .eq("user_id", user.id)
+
+        if (exclusionesError) {
+          console.error("Error al cargar exclusiones:", exclusionesError)
+          throw exclusionesError
+        }
+
+        console.log(`Se encontraron ${exclusionesData?.length || 0} exclusiones`)
+
+        // Convertir las fechas de string a Date y mapear los nombres de columnas
+        const tareasConFechas = (tareasData || [])
+          .map((tarea: any) => {
+            console.log("Procesando tarea:", tarea.id)
+            try {
+              return {
+                id: tarea.id,
+                titulo: tarea.title || "",
+                descripcion: tarea.description || "",
+                fecha: new Date(`${tarea.event_date}T00:00:00`),
+                horaInicio: tarea.start_time ? tarea.start_time.substring(0, 5) : "00:00", // Convertir "HH:MM:SS" a "HH:MM"
+                horaFin: tarea.end_time ? tarea.end_time.substring(0, 5) : "00:00", // Convertir "HH:MM:SS" a "HH:MM"
+                color: tarea.color || "#f87171",
+                etiquetas: tarea.tags || [],
+                recordatorios: tarea.reminders || [],
+                recurrencia: tarea.recurrence,
+                tareaOriginalId: tarea.original_event_id,
+                user_id: tarea.user_id,
+              }
+            } catch (err) {
+              console.error("Error al procesar tarea:", tarea, err)
+              return null
+            }
+          })
+          .filter(Boolean)
+
+        console.log("Tareas procesadas correctamente")
         setTareas(tareasConFechas)
-      } catch (error) {
-        console.error("Error al cargar tareas:", error)
+        setInstanciasExcluidas(exclusionesData || [])
+        console.log("Datos cargados con éxito")
+      } catch (err: any) {
+        console.error("Error al cargar datos:", err)
+        setError(`Error al cargar tus tareas: ${err.message || "Error desconocido"}`)
+      } finally {
+        console.log("Finalizando carga de tareas")
+        setIsLoading(false)
       }
     }
-  }, [])
 
-  // Guardar tareas en localStorage cuando cambien
+    if (user) {
+      console.log("Usuario autenticado, cargando tareas...")
+      cargarTareas()
+    } else {
+      console.log("No hay usuario autenticado, esperando...")
+      setIsLoading(false)
+    }
+  }, [user])
+
+  // Añade este useEffect después del useEffect de carga de tareas
   useEffect(() => {
-    localStorage.setItem("calendaRyn-tareas", JSON.stringify(tareas))
-  }, [tareas])
+    // Si está cargando, establecer un timeout para evitar carga infinita
+    if (isLoading) {
+      const timeoutId = setTimeout(() => {
+        console.log("Timeout de carga alcanzado")
+        setIsLoading(false)
+        setError("La carga está tomando demasiado tiempo. Por favor, recarga la página.")
+      }, 10000) // 10 segundos de timeout
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isLoading])
+
+  // Guardar tareas en Supabase cuando cambien
+  const guardarTarea = async (tarea: Tarea) => {
+    if (!user) return
+
+    try {
+      // Convertir fecha a formato ISO para la fecha del evento
+      const eventDate = tarea.fecha.toISOString().split("T")[0]
+
+      // Preparar datos para guardar (mapeando a los nombres de columnas de la base de datos)
+      const tareaParaGuardar = {
+        title: tarea.titulo,
+        description: tarea.descripcion,
+        event_date: eventDate,
+        start_time: `${tarea.horaInicio}:00`, // Añadir segundos para el formato time
+        end_time: `${tarea.horaFin}:00`, // Añadir segundos para el formato time
+        color: tarea.color,
+        tags: tarea.etiquetas || [],
+        reminders: tarea.recordatorios || [],
+        recurrence: tarea.recurrencia,
+        original_event_id: tarea.tareaOriginalId,
+        user_id: user.id,
+      }
+
+      if (tareaEditar) {
+        // Actualizar tarea existente
+        const { error } = await supabase
+          .from("calendar_events")
+          .update(tareaParaGuardar)
+          .eq("id", tarea.id)
+          .eq("user_id", user.id)
+
+        if (error) throw error
+
+        setTareas(tareas.map((t) => (t.id === tareaEditar.id ? { ...tarea, user_id: user.id } : t)))
+      } else {
+        // Agregar nueva tarea
+        const { data, error } = await supabase.from("calendar_events").insert(tareaParaGuardar).select()
+
+        if (error) throw error
+
+        // Añadir la tarea con el ID generado por la base de datos
+        if (data && data[0]) {
+          const nuevaTarea = {
+            ...tarea,
+            id: data[0].id,
+            user_id: user.id,
+          }
+          setTareas([...tareas, nuevaTarea])
+        }
+      }
+    } catch (err) {
+      console.error("Error al guardar tarea:", err)
+      setError("Error al guardar la tarea. Por favor, intenta de nuevo.")
+    }
+  }
 
   const agregarTarea = (tarea: Tarea) => {
     if (tareaEditar) {
       // Editar tarea existente
-      setTareas(tareas.map((t) => (t.id === tareaEditar.id ? tarea : t)))
+      guardarTarea(tarea)
       setTareaEditar(null)
     } else {
       // Agregar nueva tarea
-      setTareas([...tareas, tarea])
+      guardarTarea(tarea)
     }
     setModalAbierto(false)
   }
@@ -100,7 +258,11 @@ export function CalendarioCompleto() {
   // Función para iniciar el proceso de eliminación
   const iniciarEliminarTarea = (tarea: Tarea) => {
     // Verificar si es una tarea recurrente o una instancia
-    if (tarea.recurrencia?.tipo !== "ninguna" || tarea.tareaOriginalId) {
+    const esRecurrente = tarea.recurrencia && tarea.recurrencia.tipo !== "ninguna"
+    const esInstanciaRecurrente = Boolean(tarea.tareaOriginalId)
+
+    if (esRecurrente || esInstanciaRecurrente) {
+      // Solo mostrar el diálogo de confirmación para tareas recurrentes o instancias
       setTareaEliminar(tarea)
       setDialogoEliminarAbierto(true)
     } else {
@@ -110,28 +272,99 @@ export function CalendarioCompleto() {
   }
 
   // Función para eliminar una tarea directamente (sin confirmación)
-  const eliminarTareaDirecta = (id: string) => {
-    setTareas(tareas.filter((tarea) => tarea.id !== id))
+  const eliminarTareaDirecta = async (id: string) => {
+    if (!user) return
+
+    try {
+      const { error } = await supabase.from("calendar_events").delete().eq("id", id).eq("user_id", user.id)
+
+      if (error) throw error
+
+      setTareas(tareas.filter((tarea) => tarea.id !== id))
+    } catch (err) {
+      console.error("Error al eliminar tarea:", err)
+      setError("Error al eliminar la tarea. Por favor, intenta de nuevo.")
+    }
   }
 
   // Función para eliminar solo la instancia actual
-  const eliminarSoloEstaInstancia = () => {
-    if (!tareaEliminar) return
+  const eliminarSoloEstaInstancia = async () => {
+    if (!tareaEliminar || !user) return
 
-    setTareas(tareas.filter((tarea) => tarea.id !== tareaEliminar.id))
+    try {
+      if (tareaEliminar.tareaOriginalId) {
+        // Es una instancia de una tarea recurrente
+        // Añadir a la lista de instancias excluidas
+        const nuevaExclusion: InstanciaExcluida = {
+          tareaOriginalId: tareaEliminar.tareaOriginalId,
+          fechaExcluida: tareaEliminar.fecha.toISOString(),
+          user_id: user.id,
+        }
+
+        const { error } = await supabase.from("instancias_excluidas").insert(nuevaExclusion)
+
+        if (error) throw error
+
+        setInstanciasExcluidas([...instanciasExcluidas, nuevaExclusion])
+
+        // Actualizar las tareas con recurrencias para reflejar la eliminación
+        setTareasConRecurrencias(tareasConRecurrencias.filter((tarea) => tarea.id !== tareaEliminar.id))
+      } else if (tareaEliminar.recurrencia && tareaEliminar.recurrencia.tipo !== "ninguna") {
+        // Es una tarea original recurrente, excluir esta instancia específica
+        const nuevaExclusion: InstanciaExcluida = {
+          tareaOriginalId: tareaEliminar.id,
+          fechaExcluida: tareaEliminar.fecha.toISOString(),
+          user_id: user.id,
+        }
+
+        const { error } = await supabase.from("instancias_excluidas").insert(nuevaExclusion)
+
+        if (error) throw error
+
+        setInstanciasExcluidas([...instanciasExcluidas, nuevaExclusion])
+      }
+    } catch (err) {
+      console.error("Error al excluir instancia:", err)
+      setError("Error al excluir la instancia. Por favor, intenta de nuevo.")
+    }
+
     setDialogoEliminarAbierto(false)
     setTareaEliminar(null)
   }
 
   // Función para eliminar todas las instancias
-  const eliminarTodasLasInstancias = () => {
-    if (!tareaEliminar) return
+  const eliminarTodasLasInstancias = async () => {
+    if (!tareaEliminar || !user) return
 
-    // Si es una instancia, obtener el ID de la tarea original
-    const idOriginal = tareaEliminar.tareaOriginalId || tareaEliminar.id
+    try {
+      // Si es una instancia, obtener el ID de la tarea original
+      const idOriginal = tareaEliminar.tareaOriginalId || tareaEliminar.id
 
-    // Eliminar la tarea original y todas sus instancias
-    setTareas(tareas.filter((tarea) => tarea.id !== idOriginal && tarea.tareaOriginalId !== idOriginal))
+      // Eliminar la tarea original
+      const { error: errorTarea } = await supabase
+        .from("calendar_events")
+        .delete()
+        .eq("id", idOriginal)
+        .eq("user_id", user.id)
+
+      if (errorTarea) throw errorTarea
+
+      // También eliminar cualquier exclusión relacionada con esta tarea
+      const { error: errorExclusiones } = await supabase
+        .from("instancias_excluidas")
+        .delete()
+        .eq("tareaoriginalid", idOriginal)
+        .eq("user_id", user.id)
+
+      if (errorExclusiones) throw errorExclusiones
+
+      // Actualizar el estado local
+      setTareas(tareas.filter((tarea) => tarea.id !== idOriginal))
+      setInstanciasExcluidas(instanciasExcluidas.filter((exclusion) => exclusion.tareaOriginalId !== idOriginal))
+    } catch (err) {
+      console.error("Error al eliminar todas las instancias:", err)
+      setError("Error al eliminar las instancias. Por favor, intenta de nuevo.")
+    }
 
     setDialogoEliminarAbierto(false)
     setTareaEliminar(null)
@@ -203,8 +436,18 @@ export function CalendarioCompleto() {
           return
         }
 
+        // Verificar si esta instancia está excluida (fue eliminada individualmente)
+        const fechaISO = fecha.toISOString()
+        const estaExcluida = instanciasExcluidas.some(
+          (exclusion) => exclusion.tareaOriginalId === tareaOriginal.id && exclusion.fechaExcluida === fechaISO,
+        )
+
+        if (estaExcluida) {
+          return // No crear esta instancia porque fue excluida
+        }
+
         // Crear un ID único para esta instancia
-        const idInstancia = `${tareaOriginal.id}-${fecha.toISOString()}`
+        const idInstancia = `${tareaOriginal.id}-${fechaISO}`
 
         nuevasInstancias.push({
           ...tareaOriginal,
@@ -218,11 +461,50 @@ export function CalendarioCompleto() {
     })
 
     // Actualizar tareas con las nuevas instancias
-    setTareasConRecurrencias([...tareasBase, ...nuevasInstancias])
-  }, [tareas, fechaActual])
+    if (nuevasInstancias.length > 0 || tareas.some((t) => t.tareaOriginalId)) {
+      setTareasConRecurrencias([...tareasBase, ...nuevasInstancias])
+    }
+  }, [tareas, fechaActual, instanciasExcluidas])
+
+  useEffect(() => {
+    // Si está cargando, establecer un timeout para evitar carga infinita
+    if (isLoading) {
+      const timeoutId = setTimeout(() => {
+        console.log("Timeout de carga alcanzado")
+        setIsLoading(false)
+        setError("La carga está tomando demasiado tiempo. Por favor, recarga la página.")
+      }, 10000) // 10 segundos de timeout
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isLoading])
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Cargando tu calendario...</p>
+          <p className="text-xs text-muted-foreground">
+            {user ? `Usuario: ${user.email}` : "No hay usuario autenticado"}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Añade esto justo antes del return principal
+  console.log("Renderizando calendario con", tareasConRecurrencias.length, "tareas")
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
+      {error && (
+        <Alert variant="destructive" className="col-span-full mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <div className="space-y-6">
         <CalendarioCompacto fechaActual={fechaActual} setFechaActual={setFechaActual} />
 

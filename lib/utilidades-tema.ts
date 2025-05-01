@@ -1,3 +1,4 @@
+// Actualizar las definiciones de temas para incluir fuentes específicas y mejorar el contraste del texto
 export interface TipoTema {
   nombre: string
   fontFamily: string
@@ -17,7 +18,7 @@ export interface TipoTema {
 export const TEMAS: Record<string, TipoTema> = {
   minimalist: {
     nombre: "Minimalista",
-    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    fontFamily: "var(--font-roboto), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     borderRadius: "4px",
     buttonStyle: "square",
     cardStyle: "flat",
@@ -61,7 +62,7 @@ export const TEMAS: Record<string, TipoTema> = {
   },
   futurista: {
     nombre: "Futurista",
-    fontFamily: "var(--font-vt323)",
+    fontFamily: "var(--font-vt323), monospace",
     borderRadius: "2px",
     buttonStyle: "retro",
     cardStyle: "pixel",
@@ -107,7 +108,7 @@ export const TEMAS: Record<string, TipoTema> = {
   },
   frutigerAero: {
     nombre: "Frutiger Aero",
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+    fontFamily: "var(--font-nunito), 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
     borderRadius: "6px",
     buttonStyle: "glass",
     cardStyle: "glass",
@@ -123,7 +124,7 @@ export const TEMAS: Record<string, TipoTema> = {
       accent: "#ffffff",
       background: "#e8f2fc",
       "background-alt": "#d4e8fc",
-      text: "#333333",
+      text: "#1a365d", // Texto más oscuro para mejor contraste
       border: "#b3d6fc",
       "header-bg": "rgba(212, 232, 252, 0.9)",
       "footer-bg": "rgba(212, 232, 252, 0.9)",
@@ -133,7 +134,7 @@ export const TEMAS: Record<string, TipoTema> = {
       "button-text": "#ffffff",
       "input-bg": "#ffffff",
       "input-border": "#b3d6fc",
-      "input-text": "#333333",
+      "input-text": "#1a365d", // Texto más oscuro para mejor contraste
       shadow: "0 0 15px rgba(179, 214, 252, 0.8)",
       "grid-line": "#b3d6fc80",
       "tag-bg": "#0078d720",
@@ -152,7 +153,7 @@ export const TEMAS: Record<string, TipoTema> = {
   },
   y2k: {
     nombre: "Y2K",
-    fontFamily: "'Comic Sans MS', 'Comic Sans', cursive",
+    fontFamily: "var(--font-comic-sans), 'Comic Sans MS', 'Comic Sans', cursive",
     borderRadius: "20px",
     buttonStyle: "pill",
     cardStyle: "retro",

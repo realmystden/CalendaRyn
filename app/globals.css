@@ -418,6 +418,20 @@ body {
   box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.5);
 }
 
+.theme-minimalist .theme-button-primary {
+  transition: transform 0.3s ease;
+  background-color: var(--primary) !important;
+  color: var(--button-text) !important;
+}
+
+.theme-minimalist .theme-button-primary:hover {
+  transform: scale(1.05);
+  box-shadow: none !important;
+  background-color: var(--primary) !important;
+  color: var(--button-text) !important;
+  opacity: 1 !important;
+}
+
 .theme-button-secondary {
   background-color: transparent;
   color: var(--primary);
@@ -1215,4 +1229,94 @@ body {
 .theme-y2k {
   background-color: var(--background);
   background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ff66c4' fill-opacity='0.1'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Regla específica para el botón "Nueva Tarea" */
+.theme-minimalist button.w-full.theme-button-primary:hover {
+  transform: scale(1.05);
+  background-color: var(--primary) !important;
+  color: var(--button-text) !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+}
+
+/* Añadir estilos específicos para las fuentes de cada tema */
+.theme-minimalist {
+  background-color: var(--background);
+  font-family: var(--font-roboto), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 400;
+}
+
+.theme-minimalist .theme-title,
+.theme-minimalist .theme-date-header,
+.theme-minimalist h1,
+.theme-minimalist h2,
+.theme-minimalist h3,
+.theme-minimalist h4 {
+  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-weight: 500;
+}
+
+.theme-futurista {
+  background-color: var(--background);
+  position: relative;
+  font-family: var(--font-vt323), monospace;
+  letter-spacing: 0.5px;
+}
+
+.theme-futurista .theme-title,
+.theme-futurista .theme-date-header,
+.theme-futurista h1,
+.theme-futurista h2,
+.theme-futurista h3,
+.theme-futurista h4 {
+  font-family: var(--font-orbitron), monospace;
+  letter-spacing: 1px;
+}
+
+.theme-frutigerAero {
+  background: var(--background-gradient);
+  font-family: var(--font-nunito), "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.theme-frutigerAero .theme-title,
+.theme-frutigerAero .theme-date-header,
+.theme-frutigerAero h1,
+.theme-frutigerAero h2,
+.theme-frutigerAero h3,
+.theme-frutigerAero h4 {
+  font-family: var(--font-nunito), "Segoe UI", Tahoma, sans-serif;
+  font-weight: 600;
+  color: #1a365d; /* Texto más oscuro para mejor contraste */
+}
+
+.theme-frutigerAero .theme-text,
+.theme-frutigerAero .theme-task-time,
+.theme-frutigerAero .theme-task-description,
+.theme-frutigerAero .theme-label,
+.theme-frutigerAero .theme-input,
+.theme-frutigerAero .theme-textarea {
+  color: #1a365d; /* Texto más oscuro para mejor contraste */
+}
+
+.theme-frutigerAero .theme-hour,
+.theme-frutigerAero .theme-weekday,
+.theme-frutigerAero .theme-day {
+  color: #1a365d; /* Texto más oscuro para mejor contraste */
+}
+
+.theme-y2k {
+  background-color: var(--background);
+  background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ff66c4' fill-opacity='0.1'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  font-family: var(--font-comic-sans), "Comic Sans MS", "Comic Sans", cursive;
+}
+
+.theme-y2k .theme-title,
+.theme-y2k .theme-date-header,
+.theme-y2k h1,
+.theme-y2k h2,
+.theme-y2k h3,
+.theme-y2k h4 {
+  font-family: var(--font-comic-sans), "Comic Sans MS", "Comic Sans", cursive;
+  font-weight: 700;
 }
