@@ -3,7 +3,6 @@ import "@/app/globals.css"
 import type { Metadata } from "next"
 import { Inter, Orbitron, VT323, Roboto, Nunito, Comic_Neue as Comic_Sans_MS } from "next/font/google"
 import { ProveedorTema } from "@/components/proveedor-tema"
-import { AuthProvider } from "@/components/auth/auth-context"
 
 // Configurar las fuentes
 const inter = Inter({
@@ -63,9 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${orbitron.variable} ${vt323.variable} ${roboto.variable} ${nunito.variable} ${comicSans.variable}`}
     >
       <body className={inter.className}>
-        <AuthProvider>
-          <ProveedorTema>{children}</ProveedorTema>
-        </AuthProvider>
+        <ProveedorTema>{children}</ProveedorTema>
       </body>
     </html>
   )
