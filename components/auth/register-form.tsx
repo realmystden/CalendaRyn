@@ -3,8 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,7 +19,6 @@ export function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [isSuccess, setIsSuccess] = useState(false)
   const { signUp } = useAuth()
   const router = useRouter()
 
@@ -43,21 +42,16 @@ export function RegisterForm() {
     }
 
     try {
-      const { error, data } = await signUp(email, password)
+      const { error } = await signUp(email, password)
 
       if (error) {
         setError(error.message)
         return
       }
 
-      // Check if email confirmation is required
-      if (data?.user?.identities?.length === 0) {
-        setIsSuccess(true)
-      } else {
-        // Auto login if email confirmation is not required
-        router.push("/dashboard")
-        router.refresh()
-      }
+      // Redirect to dashboard on successful registration
+      router.push("/dashboard")
+      router.refresh()
     } catch (err) {
       setError("An unexpected error occurred. Please try again.")
       console.error(err)
@@ -66,30 +60,11 @@ export function RegisterForm() {
     }
   }
 
-  if (isSuccess) {
-    return (
-      <Card className="w-full max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="text-2xl theme-title">Registro exitoso</CardTitle>
-          <CardDescription>
-            Hemos enviado un correo de confirmación a <strong>{email}</strong>. Por favor, verifica tu bandeja de
-            entrada y sigue las instrucciones para activar tu cuenta.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button asChild className="w-full">
-            <Link href="/auth/login">Volver al inicio de sesión</Link>
-          </Button>
-        </CardFooter>
-      </Card>
-    )
-  }
-
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-2xl theme-title">Crear cuenta</CardTitle>
-        <CardDescription>Regístrate para comenzar a usar tu calendario personalizado</CardDescription>
+        <CardDescription>Regístrate para comenzar a usar tu calendario</CardDescription>
       </CardHeader>
       <CardContent>
         {error && (

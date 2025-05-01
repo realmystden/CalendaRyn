@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/components/auth/auth-context"
@@ -18,29 +18,55 @@ export function LoginForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const { signIn } = useAuth()
+  const [isRedirecting, setIsRedirecting] = useState(false)
+  const { signIn, session } = useAuth()
   const router = useRouter()
+
+  // Si ya hay una sesión activa, redirigir al dashboard
+  useEffect(() => {
+    if (session && !isRedirecting) {
+      setIsRedirecting(true)
+      router.push("/dashboard")
+    }
+  }, [session, router, isRedirecting])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (isLoading) return
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const { error } = await signIn(email, password)
+      const { error, success } = await signIn(email, password)
 
       if (error) {
-        setError(error.message)
+        let errorMessage = "Error al iniciar sesión. Por favor, verifica tus credenciales."
+
+        // Personalizar mensajes de error comunes
+        if (error.message?.includes("Invalid login credentials")) {
+          errorMessage = "Credenciales inválidas. Por favor, verifica tu email y contraseña."
+        } else if (error.message?.includes("Email not confirmed")) {
+          errorMessage = "Email no confirmado. Por favor, verifica tu bandeja de entrada."
+        }
+
+        setError(errorMessage)
+        setIsLoading(false)
         return
       }
 
-      // Redirect to dashboard on successful login
-      router.push("/dashboard")
-      router.refresh()
+      if (success) {
+        console.log("Inicio de sesión exitoso, redirigiendo al dashboard")
+        setIsRedirecting(true)
+        router.push("/dashboard")
+      } else {
+        setError("No se pudo iniciar sesión. Por favor, intenta de nuevo.")
+        setIsLoading(false)
+      }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
-      console.error(err)
-    } finally {
+      console.error("Error inesperado:", err)
+      setError("Ocurrió un error inesperado. Por favor, intenta de nuevo.")
       setIsLoading(false)
     }
   }
@@ -69,6 +95,8 @@ export function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="theme-input"
+              disabled={isLoading || isRedirecting}
+              autoComplete="email"
             />
           </div>
           <div className="space-y-2">
@@ -85,13 +113,20 @@ export function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="theme-input"
+              disabled={isLoading || isRedirecting}
+              autoComplete="current-password"
             />
           </div>
-          <Button type="submit" className="w-full theme-button-primary" disabled={isLoading}>
+          <Button type="submit" className="w-full theme-button-primary" disabled={isLoading || isRedirecting}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Iniciando sesión...
+              </>
+            ) : isRedirecting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Redirigiendo...
               </>
             ) : (
               "Iniciar sesión"

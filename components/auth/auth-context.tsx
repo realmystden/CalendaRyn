@@ -10,10 +10,11 @@ type AuthContextType = {
   user: User | null
   session: Session | null
   isLoading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any | null }>
-  signUp: (email: string, password: string) => Promise<{ error: any | null; data: any | null }>
+  signIn: (email: string, password: string) => Promise<{ error: any | null; success: boolean }>
+  signUp: (email: string, password: string) => Promise<{ error: any | null; data: any | null; success: boolean }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: any | null }>
+  refreshSession: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -24,11 +25,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const supabase = getBrowserClient()
 
+  // Función para refrescar la sesión
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) {
+        console.error("Error al refrescar sesión:", error)
+        return
+      }
+
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+      } else {
+        setSession(null)
+        setUser(null)
+      }
+    } catch (err) {
+      console.error("Error inesperado al refrescar sesión:", err)
+    }
+  }
+
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
       setIsLoading(true)
-      console.log("Obteniendo sesión inicial de Supabase")
 
       try {
         const {
@@ -40,13 +61,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error("Error al obtener sesión:", error)
         }
 
-        setSession(session)
-        setUser(session?.user ?? null)
-
-        if (session?.user) {
-          console.log("Usuario autenticado:", session.user.email)
+        if (session) {
+          console.log("Sesión encontrada, actualizando estado")
+          setSession(session)
+          setUser(session.user)
         } else {
-          console.log("No hay usuario autenticado")
+          console.log("No hay sesión activa")
+          setSession(null)
+          setUser(null)
         }
       } catch (err) {
         console.error("Error inesperado al obtener sesión:", err)
@@ -58,47 +80,102 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getInitialSession()
 
     // Listen for auth changes
-    console.log("Configurando listener de cambios de autenticación")
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log("Cambio de estado de autenticación:", _event)
-      setSession(session)
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log("Cambio de estado de autenticación:", event)
+
+      if (currentSession) {
+        setSession(currentSession)
+        setUser(currentSession.user)
+      } else {
+        // Solo limpiamos el estado si el evento es de cierre de sesión
+        if (event === "SIGNED_OUT") {
+          setSession(null)
+          setUser(null)
+        }
+      }
+
       setIsLoading(false)
     })
 
     return () => {
-      console.log("Limpiando listener de autenticación")
       subscription.unsubscribe()
     }
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
+    try {
+      setIsLoading(true)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (error) {
+        console.error("Error en inicio de sesión:", error)
+        return { error, success: false }
+      }
+
+      if (data.session) {
+        console.log("Inicio de sesión exitoso, actualizando estado")
+        setSession(data.session)
+        setUser(data.session.user)
+        return { error: null, success: true }
+      } else {
+        console.error("Inicio de sesión sin errores pero sin sesión")
+        return { error: new Error("No se pudo iniciar sesión"), success: false }
+      }
+    } catch (err) {
+      console.error("Error inesperado en inicio de sesión:", err)
+      return { error: err, success: false }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    })
-    return { data, error }
+    try {
+      setIsLoading(true)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        return { data: null, error, success: false }
+      }
+
+      return { data, error: null, success: true }
+    } catch (err) {
+      return { data: null, error: err, success: false }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    setIsLoading(true)
+    try {
+      await supabase.auth.signOut()
+      setSession(null)
+      setUser(null)
+    } catch (err) {
+      console.error("Error al cerrar sesión:", err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
-    })
-    return { error }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+      return { error }
+    } catch (err) {
+      return { error: err }
+    }
   }
 
   const value = {
@@ -109,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     resetPassword,
+    refreshSession,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

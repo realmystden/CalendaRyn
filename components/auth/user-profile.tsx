@@ -77,10 +77,6 @@ export function UserProfile() {
               <Label>Correo electrónico</Label>
               <div className="p-2 border rounded-md bg-muted/50">{user.email}</div>
             </div>
-            <div>
-              <Label>ID de usuario</Label>
-              <div className="p-2 border rounded-md bg-muted/50 text-sm font-mono">{user.id}</div>
-            </div>
           </div>
         </CardContent>
       </Card>
