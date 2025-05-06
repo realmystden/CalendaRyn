@@ -76,6 +76,8 @@ export function generarFechasRecurrencia(
   },
   fechaInicio: Date,
   fechaFin: Date,
+  tareaOriginal: any, // TODO: Define the type for tareaOriginal
+  instanciasExcluidas: any[], // TODO: Define the type for instanciasExcluidas
 ): Date[] {
   const fechas: Date[] = []
   let contador = 0
@@ -190,8 +192,18 @@ export function generarFechasRecurrencia(
 
       // Verificar si la fecha está en el rango
       if (fechaActual >= fechaInicio) {
-        fechas.push(new Date(fechaActual))
-        contador++
+        // Verificar si esta instancia está excluida (fue eliminada individualmente)
+        const fechaISO = fechaActual.toISOString()
+        const estaExcluida = instanciasExcluidas.some(
+          (exclusion) =>
+            exclusion.tareaOriginalId === tareaOriginal.id &&
+            new Date(exclusion.fechaExcluida).toDateString() === fechaActual.toDateString(),
+        )
+
+        if (!estaExcluida) {
+          fechas.push(new Date(fechaActual))
+          contador++
+        }
       }
 
       // Verificar condiciones de finalización

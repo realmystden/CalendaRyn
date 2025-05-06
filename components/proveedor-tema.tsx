@@ -121,8 +121,11 @@ export function ProveedorTema({ children }: { children: React.ReactNode }) {
       setEstilosTema(TEMAS[nuevoTema])
       localStorage.setItem("calendaRyn-tema", nuevoTema)
 
-      // Aplicar fuente
+      // Aplicar fuente - ensure this happens immediately
       document.documentElement.style.setProperty("--font-family", TEMAS[nuevoTema].fontFamily)
+
+      // Add a class to the document for theme-specific styling
+      document.documentElement.className = `theme-${nuevoTema}`
 
       // Aplicar colores según la configuración
       aplicarColoresSegunConfiguracion(nuevoTema, coloresPersonalizados, usandoColoresPersonalizados)

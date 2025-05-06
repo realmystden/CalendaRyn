@@ -149,6 +149,8 @@ export const TEMAS: Record<string, TipoTema> = {
       "background-gradient": "linear-gradient(135deg, #e8f2fc, #d4e8fc)",
       "backdrop-blur": "10px",
       "primary-rgb": "0, 120, 215",
+      "recurrence-bg": "#0078d720",
+      "recurrence-text": "#0078d7",
     },
   },
   y2k: {

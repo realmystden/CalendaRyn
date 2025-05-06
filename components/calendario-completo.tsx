@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarioCompacto } from "@/components/calendario-compacto"
 import { VistaDiaria } from "@/components/vistas/vista-diaria"
@@ -12,6 +12,20 @@ import { DialogoConfirmacionRecurrencia } from "@/components/dialogo-confirmacio
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { generarFechasRecurrencia } from "@/lib/utilidades-recurrencia"
+import { ErrorBoundary } from "react-error-boundary"
+
+// Create a fallback component
+const ErrorFallback = ({ error, resetErrorBoundary }) => {
+  return (
+    <div className="p-4 border border-red-500 rounded-md bg-red-50 text-red-800">
+      <h2 className="text-lg font-bold mb-2">Algo salió mal:</h2>
+      <p className="mb-4">{error.message}</p>
+      <button onClick={resetErrorBoundary} className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+        Reiniciar aplicación
+      </button>
+    </div>
+  )
+}
 
 export type Tarea = {
   id: string
@@ -194,6 +208,15 @@ export function CalendarioCompleto() {
     setModalAbierto(true)
   }
 
+  // Helper function to ensure dates are properly compared
+  const sonFechasIguales = (fecha1: Date, fecha2: Date): boolean => {
+    return (
+      fecha1.getFullYear() === fecha2.getFullYear() &&
+      fecha1.getMonth() === fecha2.getMonth() &&
+      fecha1.getDate() === fecha2.getDate()
+    )
+  }
+
   // Generar instancias de tareas recurrentes
   useEffect(() => {
     // Obtener solo las tareas originales (no instancias)
@@ -247,11 +270,7 @@ export function CalendarioCompleto() {
       // Crear instancias para cada fecha generada
       fechasRecurrentes.forEach((fecha) => {
         // No crear instancia para la fecha original (ya existe como tarea original)
-        if (
-          fecha.getDate() === fechaOriginal.getDate() &&
-          fecha.getMonth() === fechaOriginal.getMonth() &&
-          fecha.getFullYear() === fechaOriginal.getFullYear()
-        ) {
+        if (sonFechasIguales(fecha, fechaOriginal)) {
           return
         }
 
@@ -283,101 +302,117 @@ export function CalendarioCompleto() {
     setTareasConRecurrencias([...tareasBase, ...nuevasInstancias])
   }, [tareas, fechaActual, instanciasExcluidas])
 
+  // Memoize filtered tasks to prevent unnecessary re-renders
+  const tareasOptimizadas = useMemo(() => {
+    return tareasConRecurrencias.filter((tarea) => {
+      // Add any filtering logic here if needed
+      return true
+    })
+  }, [tareasConRecurrencias])
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
-      <div className="space-y-6">
-        <CalendarioCompacto fechaActual={fechaActual} setFechaActual={setFechaActual} />
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onReset={() => {
+        // Reset the state here
+        window.location.reload()
+      }}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] gap-6">
+        <div className="space-y-6">
+          <CalendarioCompacto fechaActual={fechaActual} setFechaActual={setFechaActual} />
 
-        <Button onClick={abrirModalNuevaTarea} className="w-full theme-button-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Tarea
-        </Button>
+          <Button onClick={abrirModalNuevaTarea} className="w-full theme-button-primary">
+            <Plus className="h-4 w-4 mr-2" />
+            Nueva Tarea
+          </Button>
+        </div>
+
+        <div>
+          <Tabs value={vistaActual} onValueChange={setVistaActual} className="w-full">
+            <TabsList className="mb-4 theme-tabs">
+              <TabsTrigger value="diaria" className="theme-tab">
+                Diaria
+              </TabsTrigger>
+              <TabsTrigger value="semanal" className="theme-tab">
+                Semanal
+              </TabsTrigger>
+              <TabsTrigger value="mensual" className="theme-tab">
+                Mensual
+              </TabsTrigger>
+              <TabsTrigger value="anual" className="theme-tab">
+                Anual
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="diaria">
+              <VistaDiaria
+                tareas={tareasOptimizadas}
+                fechaActual={fechaActual}
+                onEditarTarea={editarTarea}
+                onEliminarTarea={iniciarEliminarTarea}
+              />
+            </TabsContent>
+
+            <TabsContent value="semanal">
+              <VistaSemanal
+                tareas={tareasOptimizadas}
+                fechaActual={fechaActual}
+                onEditarTarea={editarTarea}
+                onEliminarTarea={iniciarEliminarTarea}
+              />
+            </TabsContent>
+
+            <TabsContent value="mensual">
+              <VistaMensual
+                tareas={tareasOptimizadas}
+                fechaActual={fechaActual}
+                onEditarTarea={editarTarea}
+                onEliminarTarea={iniciarEliminarTarea}
+              />
+            </TabsContent>
+
+            <TabsContent value="anual">
+              <VistaAnual
+                tareas={tareasOptimizadas}
+                fechaActual={fechaActual}
+                onSeleccionarMes={(fecha) => {
+                  setFechaActual(fecha)
+                  setVistaActual("mensual")
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {modalAbierto && (
+          <ModalTarea
+            abierto={modalAbierto}
+            onClose={() => {
+              setModalAbierto(false)
+              setTareaEditar(null)
+            }}
+            onGuardar={agregarTarea}
+            fechaSeleccionada={tareaEditar?.fecha || fechaActual}
+            tareaEditar={tareaEditar}
+            etiquetas={etiquetas}
+          />
+        )}
+
+        {/* Diálogo de confirmación para eliminar tareas recurrentes */}
+        {dialogoEliminarAbierto && tareaEliminar && (
+          <DialogoConfirmacionRecurrencia
+            abierto={dialogoEliminarAbierto}
+            onClose={() => {
+              setDialogoEliminarAbierto(false)
+              setTareaEliminar(null)
+            }}
+            onConfirmarSoloEsta={eliminarSoloEstaInstancia}
+            onConfirmarTodas={eliminarTodasLasInstancias}
+            titulo={tareaEliminar.titulo}
+          />
+        )}
       </div>
-
-      <div>
-        <Tabs value={vistaActual} onValueChange={setVistaActual} className="w-full">
-          <TabsList className="mb-4 theme-tabs">
-            <TabsTrigger value="diaria" className="theme-tab">
-              Diaria
-            </TabsTrigger>
-            <TabsTrigger value="semanal" className="theme-tab">
-              Semanal
-            </TabsTrigger>
-            <TabsTrigger value="mensual" className="theme-tab">
-              Mensual
-            </TabsTrigger>
-            <TabsTrigger value="anual" className="theme-tab">
-              Anual
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="diaria">
-            <VistaDiaria
-              tareas={tareasConRecurrencias}
-              fechaActual={fechaActual}
-              onEditarTarea={editarTarea}
-              onEliminarTarea={iniciarEliminarTarea}
-            />
-          </TabsContent>
-
-          <TabsContent value="semanal">
-            <VistaSemanal
-              tareas={tareasConRecurrencias}
-              fechaActual={fechaActual}
-              onEditarTarea={editarTarea}
-              onEliminarTarea={iniciarEliminarTarea}
-            />
-          </TabsContent>
-
-          <TabsContent value="mensual">
-            <VistaMensual
-              tareas={tareasConRecurrencias}
-              fechaActual={fechaActual}
-              onEditarTarea={editarTarea}
-              onEliminarTarea={iniciarEliminarTarea}
-            />
-          </TabsContent>
-
-          <TabsContent value="anual">
-            <VistaAnual
-              tareas={tareasConRecurrencias}
-              fechaActual={fechaActual}
-              onSeleccionarMes={(fecha) => {
-                setFechaActual(fecha)
-                setVistaActual("mensual")
-              }}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {modalAbierto && (
-        <ModalTarea
-          abierto={modalAbierto}
-          onClose={() => {
-            setModalAbierto(false)
-            setTareaEditar(null)
-          }}
-          onGuardar={agregarTarea}
-          fechaSeleccionada={tareaEditar?.fecha || fechaActual}
-          tareaEditar={tareaEditar}
-          etiquetas={etiquetas}
-        />
-      )}
-
-      {/* Diálogo de confirmación para eliminar tareas recurrentes */}
-      {dialogoEliminarAbierto && tareaEliminar && (
-        <DialogoConfirmacionRecurrencia
-          abierto={dialogoEliminarAbierto}
-          onClose={() => {
-            setDialogoEliminarAbierto(false)
-            setTareaEliminar(null)
-          }}
-          onConfirmarSoloEsta={eliminarSoloEstaInstancia}
-          onConfirmarTodas={eliminarTodasLasInstancias}
-          titulo={tareaEliminar.titulo}
-        />
-      )}
-    </div>
+    </ErrorBoundary>
   )
 }

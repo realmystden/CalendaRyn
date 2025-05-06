@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { ChevronLeft, ChevronRight, Edit2, Trash2, Tag, Bell, RotateCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -60,15 +60,19 @@ export function VistaMensual({
   const ultimaSemana = semanas[5]
   const mostrarUltimaSemana = ultimaSemana.some((dia) => dia !== null)
 
-  // Filtrar tareas para el día seleccionado
-  const tareasDiaSeleccionado = diaSeleccionado
-    ? tareas.filter((tarea) => {
+  // Memoize tasks for the selected day to prevent unnecessary re-renders
+  const tareasDiaSeleccionado = useMemo(() => {
+    if (!diaSeleccionado) return []
+
+    return tareas
+      .filter((tarea) => {
         const fechaTarea = new Date(tarea.fecha)
         return (
           fechaTarea.getDate() === diaSeleccionado && fechaTarea.getMonth() === mes && fechaTarea.getFullYear() === año
         )
       })
-    : []
+      .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+  }, [tareas, diaSeleccionado, mes, año])
 
   // Verificar si una fecha es hoy
   const esHoy = (dia: number | null) => {
@@ -192,95 +196,91 @@ export function VistaMensual({
           </h3>
           {tareasDiaSeleccionado.length > 0 ? (
             <div className="space-y-2">
-              {tareasDiaSeleccionado
-                .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
-                .map((tarea) => (
-                  <div
-                    key={tarea.id}
-                    className="p-3 rounded-md shadow-sm border theme-task"
-                    style={{ borderLeftColor: tarea.color, borderLeftWidth: "4px" }}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium">{tarea.titulo}</h4>
-                        <div className="text-sm theme-task-time">
-                          {tarea.horaInicio} - {tarea.horaFin}
-                        </div>
-                        {tarea.descripcion && (
-                          <p className="text-sm mt-1 theme-task-description">{tarea.descripcion}</p>
-                        )}
-
-                        {/* Etiquetas */}
-                        {tarea.etiquetas && tarea.etiquetas.length > 0 && (
-                          <div className="flex flex-wrap mt-2">
-                            {tarea.etiquetas.map((etiquetaId) => {
-                              const etiqueta = etiquetas.find((e) => e.id === etiquetaId)
-                              if (!etiqueta) return null
-
-                              return (
-                                <div
-                                  key={etiqueta.id}
-                                  className="theme-tag"
-                                  style={{ backgroundColor: `${etiqueta.color}20`, color: etiqueta.color }}
-                                >
-                                  <Tag className="h-3 w-3 mr-1" />
-                                  {etiqueta.nombre}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-
-                        {/* Recordatorios */}
-                        {tarea.recordatorios && tarea.recordatorios.length > 0 && (
-                          <div className="mt-2">
-                            <div className="theme-reminder">
-                              <Bell className="h-3 w-3 mr-1 theme-reminder-icon" />
-                              {tarea.recordatorios.length === 1
-                                ? "1 recordatorio"
-                                : `${tarea.recordatorios.length} recordatorios`}
-                            </div>
-                          </div>
-                        )}
+              {tareasDiaSeleccionado.map((tarea) => (
+                <div
+                  key={tarea.id}
+                  className="p-3 rounded-md shadow-sm border theme-task"
+                  style={{ borderLeftColor: tarea.color, borderLeftWidth: "4px" }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-medium">{tarea.titulo}</h4>
+                      <div className="text-sm theme-task-time">
+                        {tarea.horaInicio} - {tarea.horaFin}
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 theme-task-button">
-                            <span className="sr-only">Abrir menú</span>
-                            <svg
-                              width="15"
-                              height="15"
-                              viewBox="0 0 15 15"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                            >
-                              <path
-                                d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
-                                fill="currentColor"
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                              ></path>
-                            </svg>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="theme-dropdown">
-                          <DropdownMenuItem onClick={() => onEditarTarea(tarea)} className="theme-dropdown-item">
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => onEliminarTarea(tarea)}
-                            className="theme-dropdown-item text-red-500"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {tarea.descripcion && <p className="text-sm mt-1 theme-task-description">{tarea.descripcion}</p>}
+
+                      {/* Etiquetas */}
+                      {tarea.etiquetas && tarea.etiquetas.length > 0 && (
+                        <div className="flex flex-wrap mt-2">
+                          {tarea.etiquetas.map((etiquetaId) => {
+                            const etiqueta = etiquetas.find((e) => e.id === etiquetaId)
+                            if (!etiqueta) return null
+
+                            return (
+                              <div
+                                key={etiqueta.id}
+                                className="theme-tag"
+                                style={{ backgroundColor: `${etiqueta.color}20`, color: etiqueta.color }}
+                              >
+                                <Tag className="h-3 w-3 mr-1" />
+                                {etiqueta.nombre}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* Recordatorios */}
+                      {tarea.recordatorios && tarea.recordatorios.length > 0 && (
+                        <div className="mt-2">
+                          <div className="theme-reminder">
+                            <Bell className="h-3 w-3 mr-1 theme-reminder-icon" />
+                            {tarea.recordatorios.length === 1
+                              ? "1 recordatorio"
+                              : `${tarea.recordatorios.length} recordatorios`}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 theme-task-button">
+                          <span className="sr-only">Abrir menú</span>
+                          <svg
+                            width="15"
+                            height="15"
+                            viewBox="0 0 15 15"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-4 w-4"
+                          >
+                            <path
+                              d="M3.625 7.5C3.625 8.12132 3.12132 8.625 2.5 8.625C1.87868 8.625 1.375 8.12132 1.375 7.5C1.375 6.87868 1.87868 6.375 2.5 6.375C3.12132 6.375 3.625 6.87868 3.625 7.5ZM8.625 7.5C8.625 8.12132 8.12132 8.625 7.5 8.625C6.87868 8.625 6.375 8.12132 6.375 7.5C6.375 6.87868 6.87868 6.375 7.5 6.375C8.12132 6.375 8.625 6.87868 8.625 7.5ZM13.625 7.5C13.625 8.12132 13.1213 8.625 12.5 8.625C11.8787 8.625 11.375 8.12132 11.375 7.5C11.375 6.87868 11.8787 6.375 12.5 6.375C13.1213 6.375 13.625 6.87868 13.625 7.5Z"
+                              fill="currentColor"
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                            ></path>
+                          </svg>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="theme-dropdown">
+                        <DropdownMenuItem onClick={() => onEditarTarea(tarea)} className="theme-dropdown-item">
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onEliminarTarea(tarea)}
+                          className="theme-dropdown-item text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
           ) : (
             <p className="theme-no-tasks">No hay tareas para este día.</p>

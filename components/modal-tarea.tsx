@@ -70,7 +70,14 @@ export function ModalTarea({
     if (tareaEditar) {
       setTitulo(tareaEditar.titulo)
       setDescripcion(tareaEditar.descripcion)
-      setFecha(tareaEditar.fecha.toISOString().split("T")[0])
+
+      // Ensure the date is properly formatted
+      const fechaISO =
+        tareaEditar.fecha instanceof Date
+          ? tareaEditar.fecha.toISOString().split("T")[0]
+          : new Date(tareaEditar.fecha).toISOString().split("T")[0]
+
+      setFecha(fechaISO)
       setFechaObj(new Date(tareaEditar.fecha))
       setHoraInicio(tareaEditar.horaInicio)
       setHoraFin(tareaEditar.horaFin)
@@ -94,7 +101,14 @@ export function ModalTarea({
       // Valores por defecto para nueva tarea
       setTitulo("")
       setDescripcion("")
-      setFecha(fechaSeleccionada.toISOString().split("T")[0])
+
+      // Ensure the date is properly formatted
+      const fechaISO =
+        fechaSeleccionada instanceof Date
+          ? fechaSeleccionada.toISOString().split("T")[0]
+          : new Date(fechaSeleccionada).toISOString().split("T")[0]
+
+      setFecha(fechaISO)
       setFechaObj(new Date(fechaSeleccionada))
       setHoraInicio("09:00")
       setHoraFin("10:00")

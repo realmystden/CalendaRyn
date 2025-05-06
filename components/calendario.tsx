@@ -2,6 +2,14 @@
 import { useState, useEffect } from "react"
 import type { ConfiguracionRecurrencia } from "@/components/tarea-recurrente"
 import { generarFechasRecurrencia } from "@/lib/utilidades-recurrencia"
+// Import the compatibility utilities
+import {
+  soportaNotificaciones,
+  solicitarPermisoNotificaciones,
+  mostrarNotificacion,
+  guardarEnLocalStorage,
+  obtenerDeLocalStorage,
+} from "@/lib/utilidades-compatibilidad"
 
 export type Etiqueta = {
   id: string
@@ -46,10 +54,10 @@ export function Calendario() {
 
   // Cargar tareas y etiquetas del localStorage al iniciar
   useEffect(() => {
-    const tareasGuardadas = localStorage.getItem("tareas")
-    if (tareasGuardadas) {
+    const tareasGuardadas = obtenerDeLocalStorage<any[]>("tareas", [])
+    if (tareasGuardadas.length > 0) {
       try {
-        const tareasParseadas = JSON.parse(tareasGuardadas).map((tarea: any) => ({
+        const tareasParseadas = tareasGuardadas.map((tarea: any) => ({
           ...tarea,
           fecha: new Date(tarea.fecha),
           etiquetas: tarea.etiquetas || [],
@@ -62,10 +70,10 @@ export function Calendario() {
       }
     }
 
-    const etiquetasGuardadas = localStorage.getItem("etiquetas")
-    if (etiquetasGuardadas) {
+    const etiquetasGuardadas = obtenerDeLocalStorage<Etiqueta[]>("etiquetas", [])
+    if (etiquetasGuardadas.length > 0) {
       try {
-        setEtiquetas(JSON.parse(etiquetasGuardadas))
+        setEtiquetas(etiquetasGuardadas)
       } catch (error) {
         console.error("Error al cargar etiquetas:", error)
       }
@@ -77,19 +85,22 @@ export function Calendario() {
         { id: "3", nombre: "Importante", color: "#facc15" },
       ]
       setEtiquetas(etiquetasDefault)
-      localStorage.setItem("etiquetas", JSON.stringify(etiquetasDefault))
+      guardarEnLocalStorage("etiquetas", etiquetasDefault)
     }
   }, [])
 
   // Guardar tareas en localStorage cuando cambien
   useEffect(() => {
-    localStorage.setItem("tareas", JSON.stringify(tareas))
+    guardarEnLocalStorage("tareas", tareas)
   }, [tareas])
 
   // Guardar etiquetas en localStorage cuando cambien
   useEffect(() => {
-    localStorage.setItem("etiquetas", JSON.stringify(etiquetas))
+    guardarEnLocalStorage("etiquetas", etiquetas)
   }, [etiquetas])
+
+  // Improve the notification system for reminders
+  // Add a more robust notification check
 
   // Verificar recordatorios cada minuto
   useEffect(() => {
@@ -112,12 +123,10 @@ export function Calendario() {
           // Si es hora de mostrar el recordatorio
           if (ahora >= tiempoRecordatorio && ahora <= fechaTarea) {
             // Mostrar notificación
-            if (Notification.permission === "granted") {
-              new Notification("Recordatorio: " + tarea.titulo, {
-                body: `Comienza en ${recordatorio.tiempo} minutos - ${tarea.horaInicio}`,
-                icon: "/logo.png",
-              })
-            }
+            mostrarNotificacion("Recordatorio: " + tarea.titulo, {
+              body: `Comienza en ${recordatorio.tiempo} minutos - ${tarea.horaInicio}`,
+              icon: "/logo.png",
+            })
 
             // Marcar como enviado
             setTareas(
@@ -142,8 +151,8 @@ export function Calendario() {
     }
 
     // Solicitar permiso para notificaciones
-    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-      Notification.requestPermission()
+    if (soportaNotificaciones()) {
+      solicitarPermisoNotificaciones()
     }
 
     const intervalo = setInterval(verificarRecordatorios, 60000) // Cada minuto

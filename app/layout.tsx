@@ -63,6 +63,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className={inter.className}>
         <ProveedorTema>{children}</ProveedorTema>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/service-worker.js').then(
+                    function(registration) {
+                      console.log('Service Worker registrado con éxito:', registration.scope);
+                    },
+                    function(error) {
+                      console.log('Error al registrar el Service Worker:', error);
+                    }
+                  );
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )
